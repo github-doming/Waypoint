@@ -19,6 +19,72 @@ public class CrafterCatalogTests
         {"type":"word","list":1,"key":4053401100,"text":"Dire"}
         """;
 
+    // The same lines with the optional translated fields a Gateway sends when the checkout has the client's Chinese data.
+    const string LocalizedLines = """
+        {"type":"locale","tag":"zh-CN"}
+        {"type":"class","id":"Ring","name":"Rings","nameLocalized":"戒指"}
+        {"type":"pool","id":0,"mods":["IncreasedLife7","ReducedMana1"]}
+        {"type":"mod","id":"IncreasedLife7","name":"Virile","nameLocalized":"强壮的","generation":1,"domain":1,"level":44,"families":[0],"tags":["life"],"stats":[{"id":"base_maximum_life","min":100,"max":114}]}
+        {"type":"mod","id":"ReducedMana1","name":"","generation":2,"domain":1,"level":1,"families":[1],"tags":[],"stats":[{"id":"mana_+%","min":-20,"max":-10}]}
+        {"type":"base","id":"Metadata/Items/Rings/Ring1","name":"Iron Ring","nameLocalized":"铁戒指","class":"Ring","width":1,"height":1,"dropLevel":1,"requirements":[0,0,0],"sockets":0,"quality":false,"implicits":[],"pool":0,"influence":{},"crafted":0,"corrupted":0,"eldritch":0}
+        {"type":"desc","stats":["base_maximum_life"],"variants":[{"when":["#"],"text":"{0:+d} to maximum Life","textLocalized":"{0:+d} 最大生命","handlers":[]}]}
+        {"type":"desc","stats":["mana_+%"],"variants":[{"when":["1|#"],"text":"{0}% increased maximum Mana","textLocalized":"最大魔力提高 {0}%","handlers":[]},{"when":["#|-1"],"text":"{0}% reduced maximum Mana","textLocalized":"最大魔力降低 {0}%","handlers":[["negate",1]]}]}
+        {"type":"word","list":1,"key":4053401100,"text":"Dire","textLocalized":"恐怖"}
+        {"type":"word","list":2,"key":1222507149,"text":" Abyss","textLocalized":" 深渊"}
+        """;
+
+    [Fact]
+    public void A_catalog_with_the_gateways_chinese_shows_it_and_falls_back_to_english_value_by_value()
+    {
+        var catalog = CrafterCatalog.Parse(LocalizedLines);
+        Assert.Equal("zh-CN", catalog.LocaleTag);
+        Assert.True(catalog.Localized("zh-CN"));
+        Assert.False(catalog.Localized("en"));
+        var ring = Assert.Single(catalog.Bases);
+        Assert.Equal(("Iron Ring", "铁戒指"), (ring.Name, catalog.BaseName(ring, "zh-CN")));
+        Assert.Equal(("Rings", "戒指"), (catalog.Classes[ring.Class], catalog.ClassName(ring.Class, "zh-CN")));
+        var life = catalog.Mods["IncreasedLife7"];
+        Assert.Equal(("Virile", "强壮的"), (life.Name, catalog.ModName(life, "zh-CN")));
+        Assert.Equal(["+(100-114) to maximum Life"], catalog.Lines(life));
+        Assert.Equal(["+(100-114) 最大生命"], catalog.DisplayLines(life, null, "zh-CN"));
+        Assert.Equal(["+105 最大生命"], catalog.DisplayLines(life, [105], "zh-CN"));
+        // The variant is chosen by the game's English conditions; only its wording is translated.
+        var mana = catalog.Mods["ReducedMana1"];
+        Assert.Equal(["(10-20)% reduced maximum Mana"], catalog.Lines(mana));
+        Assert.Equal(["最大魔力降低 (10-20)%"], catalog.DisplayLines(mana, null, "zh-CN"));
+        Assert.Equal(["最大魔力降低 15%"], catalog.DisplayLines(mana, [-15], "zh-CN"));
+        // A value the Gateway did not translate (this mod has no affix name at all) stays the game's English.
+        Assert.Equal("", catalog.ModName(mana, "zh-CN"));
+        Assert.Equal(("Dire", " Abyss"), (catalog.Words[0].Text, catalog.Words[1].Text));
+        Assert.Equal(("恐怖", " 深渊"), (catalog.WordText(catalog.Words[0], "zh-CN"), catalog.WordText(catalog.Words[1], "zh-CN")));
+        // In English, or from a catalog without the translated fields, every accessor gives the game's English.
+        Assert.Equal("Iron Ring", catalog.BaseName(ring, "en"));
+        Assert.Equal(["+(100-114) to maximum Life"], catalog.DisplayLines(life, null, "en"));
+        var plain = CrafterCatalog.Parse(Lines);
+        Assert.Null(plain.LocaleTag);
+        Assert.False(plain.Localized("zh-CN"));
+        Assert.Equal("Iron Ring", plain.BaseName(plain.Bases[0], "zh-CN"));
+        Assert.Equal("Rings", plain.ClassName(plain.Bases[0].Class, "zh-CN"));
+        Assert.Equal("Virile", plain.ModName(plain.Mods["IncreasedLife7"], "zh-CN"));
+        Assert.Equal("Dire", plain.WordText(plain.Words[0], "zh-CN"));
+        Assert.Equal(["+(100-114) to maximum Life"], plain.DisplayLines(plain.Mods["IncreasedLife7"], null, "zh-CN"));
+    }
+
+    [Fact]
+    public void The_clients_display_markup_is_stripped_from_a_modifiers_words()
+    {
+        var description = new StatDescription(["maximum_life"], [new DescriptionVariant(["#"], "<DF1>{{{0:+d}}} to maximum Life", [])]);
+        var mod = new CraftMod("IncreasedLife1", "", 1, 1, 1, [0], [], [new CraftStat("maximum_life", 130, 144)]);
+        Assert.Equal(["+(130-144) to maximum Life"], ModText.Lines(mod, _ => description, null));
+        Assert.Equal(["+144 to maximum Life"], ModText.Lines(mod, _ => description, [144]));
+        Assert.Equal("+(130-144) to maximum Life", ModText.Format(description, [(130, 144)]));
+        Assert.Equal("+144 to maximum Life", ModText.Format(description, [(144, 144)]));
+        var localized = new StatDescription(["maximum_life"],
+            [new DescriptionVariant(["#"], "{0:+d} to maximum Life", []) { TextLocalized = "<DF1>{{{0:+d}}} 最大生命" }]);
+        Assert.Equal(["+144 最大生命"], ModText.Lines(mod, _ => localized, [144], localized: true));
+        Assert.Equal("+144 最大生命", ModText.Format(localized, [(144, 144)], localized: true));
+    }
+
     [Fact]
     public void A_mod_reads_as_the_game_words_it_with_its_range_or_its_values()
     {

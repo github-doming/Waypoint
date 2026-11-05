@@ -640,7 +640,9 @@ write and gives it to the character in game.
   and a box per value (any whole number is accepted), and up, down and remove. The prefix and suffix count for the rarity
   shows above them, and two modifiers of one group are marked; neither is refused.
 - **Preview** (right): the item as text in the game's rarity and modifier colours (readable on every scheme), with its
-  name, item level, requirements, sockets, implicits, modifiers and states.
+  name, item level, requirements, sockets, implicits, modifiers and states. In a Chinese interface the Gateway's Chinese
+  base, affix and stat text is shown, with the English of a value it has no translation for; the client's display markup
+  never appears.
 - **Save** keeps it in **Saved** (left) with an optional label, in `crafted-items.json` beside Waypoint's settings:
   Waypoint's own file, never in the checkout. A saved item opens with a click; **New item** starts again. The icons
   beside it duplicate the selected item and delete the selected ones (Ctrl or Shift selects several, the Delete key
@@ -665,8 +667,12 @@ write and gives it to the character in game.
   first when the item on screen has changes no save holds; saved items stay.
 
 The data is the Gateway's own (`GameServer.Gateway crafter`, read once per Gateway build): the bases, the modifiers each
-can have (the server's own rolling rules), their stat descriptions in English (the checkout's
-`data/stat-descriptions.txt`) and the name words. `CrafterCatalog.cs` reads it and words the modifiers.
+can have (the server's own rolling rules), their stat descriptions (the checkout's `data/stat-descriptions.txt`) and the
+name words. `CrafterCatalog.cs` reads it and words the modifiers. When the checkout has the client's translated data the
+Gateway also sends its Simplified Chinese base, affix, wording and name-word text (a `locale` line names the language),
+with per-value English fallback, and the crafter shows it in a Chinese interface; the client's display markup (`<DF1>`,
+`{{…}}`) is stripped from whatever an older Gateway still sends. **Import item** keeps matching the game's English item
+text, and the item `/item_give` sends is the same in every interface language.
 
 A Gateway built before the hook does not know `crafter` and would start for real, so Waypoint first asks `commands`,
 which is safe, and goes on only if that lists `/item_give`, which came with the hook. If not, the window says the

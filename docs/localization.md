@@ -63,6 +63,15 @@ Other technical terms are translated only where an accepted translation exists (
 programs, Gateway, Auth, Patch and Dev host, as they appear in logs and process lists. In Chinese text, a half-width space
 separates Chinese from Latin letters, digits and placeholders, and punctuation is full-width.
 
+## Game data
+
+The item crafter shows game data in the interface language when the Gateway offers it: its `crafter` output may start
+with a `locale` line and carry optional translated fields (`nameLocalized`, `textLocalized`) beside the English ones.
+Those are shown when the interface language is that language and each value falls back to English on its own; an older
+Gateway, or a checkout without the client's translated data, shows English only. This does not select or change the game
+client's language, and it does not affect the item `/item_give` sends, saved items or **Import item**'s matching of the
+game's English item text.
+
 ## Another language
 
 1. Add `Strings.<tag>.resx` with every source of `Strings.resx` translated (`add-translations.py --language <tag>` fills it
