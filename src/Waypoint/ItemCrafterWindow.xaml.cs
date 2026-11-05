@@ -17,6 +17,9 @@ sealed record ModRow(CraftMod Mod, int Pool, string Section, string TierText, st
 /// <summary>A saved item on the left.</summary>
 sealed record SavedRow(CraftedItem Item, PackIconKind Icon, string Name, string Detail, Brush Brush);
 
+/// <summary>A rare-name word as the pickers show it: the word itself, and its text in the interface language.</summary>
+sealed record WordRow(RareWord Word, string Text);
+
 /// <summary>
 /// The item crafter (Tools section): a base, its rarity, item level, quality, sockets, states and influences, a rare's
 /// name and the modifiers with their values, shown as the item would read in game. Save keeps it in Waypoint's own
@@ -32,6 +35,8 @@ public partial class ItemCrafterWindow : FormWindow
     List<CraftedItem> _saved = CraftedItems.Load();
     string? _class;
     bool _updating;
+    /// <summary>The language the rare-name pickers' rows were built in, so they are rebuilt when it changes.</summary>
+    string? _wordLanguage;
     readonly Dictionary<string, ToggleButton> _classButtons = [];
     readonly Dictionary<string, ToggleButton> _stateButtons = [];
     readonly Dictionary<string, RadioButton> _rarityButtons = [];
@@ -203,7 +208,15 @@ public partial class ItemCrafterWindow : FormWindow
         "LifeFlask", "ManaFlask", "HybridFlask", "UtilityFlask", "Jewel", "AbyssJewel",
     ];
 
-    string ClassName(string itemClass) => _catalog?.Classes.GetValueOrDefault(itemClass) ?? itemClass;
+    string ClassName(string itemClass) => _catalog?.ClassName(itemClass, L.Current.Language) ?? itemClass;
+
+    /// <summary>A base's name in the interface language: the Gateway's translated one when it has it, else the game's
+    /// English.</summary>
+    string BaseName(CraftBase b) => _catalog?.BaseName(b, L.Current.Language) ?? b.Name;
+
+    /// <summary>A rare-name word's text in the interface language, by its key; "" when the catalog has no such word.</summary>
+    string WordText(uint key, string language) =>
+        _catalog?.Words.FirstOrDefault(w => w.Key == key) is { } word ? _catalog.WordText(word, language) : "";
 
     void ShowClasses()
     {
@@ -245,12 +258,14 @@ public partial class ItemCrafterWindow : FormWindow
     {
         if (_catalog is null) return;
         string search = BaseSearch.Text.Trim();
+        string language = L.Current.Language;
         var rows = _catalog.Bases
             .Where(b => _class is null || b.Class == _class)
-            .Where(b => search.Length == 0 || b.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || b.Id.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .Where(b => search.Length == 0 || b.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || b.Id.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || _catalog.BaseName(b, language).Contains(search, StringComparison.OrdinalIgnoreCase))
             .OrderBy(b => Array.IndexOf(ClassOrder, b.Class) is int i and >= 0 ? i : 100).ThenBy(b => b.Class, StringComparer.Ordinal)
             .ThenBy(b => b.DropLevel).ThenBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(b => new BaseRow(b, IconOf(b.Class), b.Name, BaseDetail(b)))
+            .Select(b => new BaseRow(b, IconOf(b.Class), _catalog.BaseName(b, language), BaseDetail(b)))
             .ToList();
         _updating = true;
         BaseList.ItemsSource = rows;
@@ -345,13 +360,15 @@ public partial class ItemCrafterWindow : FormWindow
                 : tiers.Where(p => AnyLevel.IsChecked == true || p.Mod.Level <= level);
             foreach (var (mod, poolId) in shown)
             {
-                var lines = _catalog.Lines(mod);
+                var lines = _catalog.DisplayLines(mod, null, L.Current.Language);
                 string text = lines.Count > 0 ? string.Join("\n", lines) : $"{mod.Id} ({string.Join(", ", mod.Stats.Select(s => s.Id))})";
+                string name = _catalog.ModName(mod, L.Current.Language);
                 if (search.Length > 0 && !text.Contains(search, StringComparison.OrdinalIgnoreCase) && !mod.Id.Contains(search, StringComparison.OrdinalIgnoreCase)
-                    && !mod.Name.Contains(search, StringComparison.OrdinalIgnoreCase) && !mod.Tags.Any(t => t.Contains(search, StringComparison.OrdinalIgnoreCase)))
+                    && !mod.Name.Contains(search, StringComparison.OrdinalIgnoreCase) && !name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    && !mod.Tags.Any(t => t.Contains(search, StringComparison.OrdinalIgnoreCase)))
                     continue;
                 int tier = poolId >= 0 ? _catalog.Tier(poolId, mod) : 0;
-                string detail = string.Join(" · ", new[] { mod.Name, L.Text("item level {0}", mod.Level), mod.Id }.Where(s => s.Length > 0));
+                string detail = string.Join(" · ", new[] { name, L.Text("item level {0}", mod.Level), mod.Id }.Where(s => s.Length > 0));
                 rows.Add(new ModRow(mod, poolId, kind.Section, tier > 0 ? $"T{tier}" : "·", tier > 0 ? L.Text("Tier {0} of {1}", tier, tiers.Count) : "",
                     text, detail, mod.Level <= level ? 1 : .5));
             }
@@ -466,7 +483,7 @@ public partial class ItemCrafterWindow : FormWindow
             }
             if (size > 0) groups.Add(size);
         }
-        if (_base is not null && colours.Count > _base.Sockets) { error = L.Text("{0} has room for at most {1} sockets", _base.Name, _base.Sockets); return null; }
+        if (_base is not null && colours.Count > _base.Sockets) { error = L.Text("{0} has room for at most {1} sockets", BaseName(_base), _base.Sockets); return null; }
         return (colours, groups);
     }
 
@@ -512,17 +529,17 @@ public partial class ItemCrafterWindow : FormWindow
     void NameChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updating) return;
-        _item.Name = NameFirst.SelectedItem is RareWord a && NameSecond.SelectedItem is RareWord b ? [a.Key, b.Key] : null;
+        _item.Name = NameFirst.SelectedItem is WordRow a && NameSecond.SelectedItem is WordRow b ? [a.Word.Key, b.Word.Key] : null;
         ShowPreview();
     }
 
     void RandomName(object sender, RoutedEventArgs e)
     {
-        if (_catalog is null) return;
-        var first = _catalog.Words.Where(w => w.List == 1).ToList();
-        var second = _catalog.Words.Where(w => w.List == 2).ToList();
+        if (NameFirst.ItemsSource is not IEnumerable<WordRow> firstRows || NameSecond.ItemsSource is not IEnumerable<WordRow> secondRows) return;
+        var first = firstRows.ToList();
+        var second = secondRows.ToList();
         if (first.Count == 0 || second.Count == 0) return;
-        _item.Name = [first[Random.Shared.Next(first.Count)].Key, second[Random.Shared.Next(second.Count)].Key];
+        _item.Name = [first[Random.Shared.Next(first.Count)].Word.Key, second[Random.Shared.Next(second.Count)].Word.Key];
         ShowItem();
     }
 
@@ -548,7 +565,7 @@ public partial class ItemCrafterWindow : FormWindow
             }
             else
             {
-                BaseTitle.Text = _base.Name;
+                BaseTitle.Text = BaseName(_base);
                 BaseSummary.Text = BaseDetail(_base);
                 BaseIcon.Kind = IconOf(_base.Class);
             }
@@ -563,23 +580,37 @@ public partial class ItemCrafterWindow : FormWindow
             if (SocketBox.Text != (_item.Sockets ?? "")) SocketBox.Text = _item.Sockets ?? "";
             ShowSockets();
             NamePanel.Visibility = _item.Rarity == "rare" ? Visibility.Visible : Visibility.Collapsed;
-            if (_catalog is not null)
-            {
-                if (NameFirst.ItemsSource is null)
-                {
-                    NameFirst.ItemsSource = _catalog.Words.Where(w => w.List == 1).OrderBy(w => w.Text, StringComparer.OrdinalIgnoreCase).ToList();
-                    NameSecond.ItemsSource = _catalog.Words.Where(w => w.List == 2).OrderBy(w => w.Text.Trim(), StringComparer.OrdinalIgnoreCase).ToList();
-                    NameFirst.DisplayMemberPath = NameSecond.DisplayMemberPath = nameof(RareWord.Text);
-                }
-                NameFirst.SelectedItem = _item.Name is [var a, _] ? _catalog.Words.FirstOrDefault(w => w.Key == a && w.List == 1) : null;
-                NameSecond.SelectedItem = _item.Name is [_, var b] ? _catalog.Words.FirstOrDefault(w => w.Key == b && w.List == 2) : null;
-            }
+            if (_catalog is not null) ShowWordChoices();
             LabelBox.Text = _item.Label;
             ShowModRows();
         }
         finally { _updating = false; }
         ShowPreview();
         ShowMods();
+    }
+
+    /// <summary>The rare-name word pickers as rows with the text in the interface language: the Gateway's translated words
+    /// when it has them, else the game's English. They are rebuilt only when the language changes, and the chosen words stay
+    /// chosen by their key.</summary>
+    void ShowWordChoices()
+    {
+        if (_catalog is null) return;
+        string language = L.Current.Language;
+        if (NameFirst.ItemsSource is null || _wordLanguage != language)
+        {
+            _wordLanguage = language;
+            NameFirst.ItemsSource = _catalog.Words.Where(w => w.List == 1).OrderBy(w => w.Text, StringComparer.OrdinalIgnoreCase)
+                .Select(w => new WordRow(w, _catalog.WordText(w, language))).ToList();
+            NameSecond.ItemsSource = _catalog.Words.Where(w => w.List == 2).OrderBy(w => w.Text.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(w => new WordRow(w, _catalog.WordText(w, language))).ToList();
+            NameFirst.DisplayMemberPath = NameSecond.DisplayMemberPath = nameof(WordRow.Text);
+        }
+        NameFirst.SelectedItem = _item.Name is [var a, _]
+            ? NameFirst.Items.Cast<WordRow>().FirstOrDefault(r => r.Word.Key == a && r.Word.List == 1)
+            : null;
+        NameSecond.SelectedItem = _item.Name is [_, var b]
+            ? NameSecond.Items.Cast<WordRow>().FirstOrDefault(r => r.Word.Key == b && r.Word.List == 2)
+            : null;
     }
 
     /// <summary>Prefix and suffix limits for the rarity: magic one of each, rare three (jewels two).</summary>
@@ -761,7 +792,7 @@ public partial class ItemCrafterWindow : FormWindow
     /// <summary>A mod with its values as one line of text, or its Id and values when the game has no words for it.</summary>
     string ModLine(CraftMod mod, IReadOnlyList<int> values)
     {
-        var lines = _catalog!.Lines(mod, values);
+        var lines = _catalog!.DisplayLines(mod, values, L.Current.Language);
         return lines.Count > 0 ? string.Join("\n", lines) : $"{mod.Id}: {string.Join(", ", values)}";
     }
 
@@ -797,13 +828,19 @@ public partial class ItemCrafterWindow : FormWindow
     string ItemName()
     {
         if (_base is null || _catalog is null) return "";
+        string language = L.Current.Language;
+        string baseName = _catalog.BaseName(_base, language);
         if (_item.Rarity == "magic")
         {
             var mods = _item.Mods.Where(m => m.Section == "explicit").Select(m => _catalog.Mods.GetValueOrDefault(m.Id)).OfType<CraftMod>().ToList();
-            string prefix = mods.FirstOrDefault(m => m.Prefix)?.Name ?? "", suffix = mods.FirstOrDefault(m => m.Suffix)?.Name ?? "";
-            return string.Join(" ", new[] { prefix, _base.Name, suffix }.Where(s => s.Length > 0));
+            string prefix = mods.FirstOrDefault(m => m.Prefix) is { } p ? _catalog.ModName(p, language) : "";
+            string suffix = mods.FirstOrDefault(m => m.Suffix) is { } s ? _catalog.ModName(s, language) : "";
+            // A Chinese affix name is attributive (…的 / …之), so it comes before the base name with no spaces.
+            return _catalog.Localized(language)
+                ? prefix + suffix + baseName
+                : string.Join(" ", new[] { prefix, baseName, suffix }.Where(part => part.Length > 0));
         }
-        return _base.Name;
+        return baseName;
     }
 
     void ShowPreview()
@@ -823,8 +860,9 @@ public partial class ItemCrafterWindow : FormWindow
         TextBlock Title(string text) => new() { Text = text, Foreground = rarity, FontSize = 16, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
         if (_item.Rarity == "rare")
         {
+            string language = L.Current.Language;
             string name = _item.Name is [var a, var b]
-                ? (_catalog.Words.FirstOrDefault(w => w.Key == a)?.Text ?? "") + (_catalog.Words.FirstOrDefault(w => w.Key == b)?.Text ?? "")
+                ? WordText(a, language) + WordText(b, language)
                 : L.Text("(random name)");
             PreviewTitle.Children.Add(Title(name));
         }
@@ -885,18 +923,24 @@ public partial class ItemCrafterWindow : FormWindow
     void ShowSaved()
     {
         string search = SavedSearch?.Text.Trim() ?? "";
+        string language = L.Current.Language;
+        // The English base name and Id still match in a translated interface, as the rows showed them before.
+        bool MatchesEnglish(SavedRow r) => _catalog?.Bases.FirstOrDefault(x => x.Id == r.Item.Base) is { } b
+            && (b.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || b.Id.Contains(search, StringComparison.OrdinalIgnoreCase));
         var rows = _saved.OrderByDescending(i => i.Saved)
             .Select(i =>
             {
                 var b = _catalog?.Bases.FirstOrDefault(x => x.Id == i.Base);
-                string name = i.Label.Length > 0 ? i.Label : b?.Name ?? i.Base;
+                string baseName = b is null ? i.Base : _catalog!.BaseName(b, language);
+                string name = i.Label.Length > 0 ? i.Label : baseName;
                 string detail = string.Join(" · ", new[]
                 {
-                    b?.Name ?? i.Base, RarityName(i.Rarity), L.Text("{0} modifiers", i.Mods.Count), i.Saved.ToLocalTime().ToString("g", L.Current.Culture),
+                    baseName, RarityName(i.Rarity), L.Text("{0} modifiers", i.Mods.Count), i.Saved.ToLocalTime().ToString("g", L.Current.Culture),
                 });
                 return new SavedRow(i, b is null ? PackIconKind.Anvil : IconOf(b.Class), name, detail, GameColour(i.Rarity == "normal" ? "normal" : i.Rarity));
             })
-            .Where(r => search.Length == 0 || r.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Detail.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .Where(r => search.Length == 0 || r.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || r.Detail.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || MatchesEnglish(r))
             .ToList();
         _updating = true;
         SavedList.ItemsSource = rows;
@@ -1053,7 +1097,7 @@ public partial class ItemCrafterWindow : FormWindow
         if (at >= 0) _saved[at] = _item.Copy(); else _saved.Add(_item.Copy());
         if (!Persist()) return;
         ShowSaved();
-        Status(L.Text("Saved {0}", _item.Label.Length > 0 ? _item.Label : _base.Name));
+        Status(L.Text("Saved {0}", _item.Label.Length > 0 ? _item.Label : BaseName(_base)));
     }
 
     bool Persist()

@@ -10,6 +10,9 @@ sealed record CraftStat(string Id, int Min, int Max);
 sealed record CraftMod(string Id, string Name, int Generation, int Domain, int Level, IReadOnlyList<int> Families,
     IReadOnlyList<string> Tags, IReadOnlyList<CraftStat> Stats)
 {
+    /// <summary>The affix name in the Gateway's language, when it has translated data; <see cref="Name"/> is the game's
+    /// English, which is what the logic and the import matching use.</summary>
+    public string? NameLocalized { get; init; }
     public bool Prefix => Generation == 1;
     public bool Suffix => Generation == 2;
     /// <summary>Tiers of one modifier share it: the same kind, families and stats.</summary>
@@ -19,13 +22,25 @@ sealed record CraftMod(string Id, string Name, int Generation, int Domain, int L
 /// <param name="Pools">"pool" (prefixes and suffixes), "crafted", "corrupted", "eldritch", and "shaper" … "warlord" (what
 /// an influence adds).</param>
 sealed record CraftBase(string Id, string Name, string Class, int Width, int Height, int DropLevel, IReadOnlyList<int> Requirements,
-    int Sockets, bool Quality, IReadOnlyList<string> Implicits, IReadOnlyDictionary<string, int> Pools);
+    int Sockets, bool Quality, IReadOnlyList<string> Implicits, IReadOnlyDictionary<string, int> Pools)
+{
+    /// <summary>The base name in the Gateway's language, when it has translated data.</summary>
+    public string? NameLocalized { get; init; }
+}
 
-sealed record DescriptionVariant(IReadOnlyList<string> When, string Text, IReadOnlyList<(string Name, int Stat)> Handlers);
+sealed record DescriptionVariant(IReadOnlyList<string> When, string Text, IReadOnlyList<(string Name, int Stat)> Handlers)
+{
+    /// <summary>The variant's wording in the Gateway's language, when it has translated data.</summary>
+    public string? TextLocalized { get; init; }
+}
 
 sealed record StatDescription(IReadOnlyList<string> Stats, IReadOnlyList<DescriptionVariant> Variants);
 
-sealed record RareWord(int List, uint Key, string Text);
+sealed record RareWord(int List, uint Key, string Text)
+{
+    /// <summary>The word in the Gateway's language, when it has translated data (list-2 words keep their leading space).</summary>
+    public string? TextLocalized { get; init; }
+}
 
 /// <summary>
 /// What the item crafter offers, from the Gateway itself (<c>GameServer.Gateway crafter</c>, the server's
@@ -41,12 +56,18 @@ sealed class CrafterCatalog
     public IReadOnlyList<RareWord> Words { get; }
     readonly Dictionary<string, StatDescription> _descriptions;
     readonly Dictionary<int, Dictionary<string, int>> _tiers = [];
+    readonly Dictionary<string, string> _classNamesLocalized;
+
+    /// <summary>The language of the translated fields the Gateway sent (`locale`), or null when it sent none: an older
+    /// Gateway, or a checkout without the client's translated data.</summary>
+    public string? LocaleTag { get; private set; }
 
     /// <summary>When the Gateway the catalog came from was built.</summary>
     public DateTime Built { get; private set; }
 
     CrafterCatalog(Dictionary<string, string> classes, List<CraftBase> bases, Dictionary<string, CraftMod> mods,
-        Dictionary<int, IReadOnlyList<CraftMod>> pools, Dictionary<string, StatDescription> descriptions, List<RareWord> words)
+        Dictionary<int, IReadOnlyList<CraftMod>> pools, Dictionary<string, StatDescription> descriptions, List<RareWord> words,
+        Dictionary<string, string> classNamesLocalized)
     {
         Classes = classes;
         Bases = bases;
@@ -54,6 +75,7 @@ sealed class CrafterCatalog
         Pools = pools;
         _descriptions = descriptions;
         Words = words;
+        _classNamesLocalized = classNamesLocalized;
     }
 
     static CrafterCatalog? _loaded;
@@ -84,6 +106,8 @@ sealed class CrafterCatalog
     internal static CrafterCatalog Parse(string jsonLines)
     {
         var classes = new Dictionary<string, string>(StringComparer.Ordinal);
+        var classNamesLocalized = new Dictionary<string, string>(StringComparer.Ordinal);
+        string? localeTag = null;
         var bases = new List<CraftBase>();
         var mods = new Dictionary<string, CraftMod>(StringComparer.Ordinal);
         var poolIds = new Dictionary<int, List<string>>();
@@ -96,8 +120,13 @@ sealed class CrafterCatalog
             var e = d.RootElement;
             switch (e.GetProperty("type").GetString())
             {
+                case "locale":
+                    localeTag = Str(e, "tag");
+                    break;
                 case "class":
-                    classes[Str(e, "id")] = Str(e, "name");
+                    string classId = Str(e, "id");
+                    classes[classId] = Str(e, "name");
+                    if (Localized(e, "nameLocalized") is { } classNameLocalized) classNamesLocalized[classId] = classNameLocalized;
                     break;
                 case "pool":
                     poolIds[e.GetProperty("id").GetInt32()] = [.. e.GetProperty("mods").EnumerateArray().Select(m => m.GetString()!)];
@@ -106,7 +135,8 @@ sealed class CrafterCatalog
                     var mod = new CraftMod(Str(e, "id"), Str(e, "name"), Int(e, "generation"), Int(e, "domain"), Int(e, "level"),
                         [.. e.GetProperty("families").EnumerateArray().Select(f => f.GetInt32())],
                         [.. e.GetProperty("tags").EnumerateArray().Select(t => t.GetString()!)],
-                        [.. e.GetProperty("stats").EnumerateArray().Select(s => new CraftStat(Str(s, "id"), Int(s, "min"), Int(s, "max")))]);
+                        [.. e.GetProperty("stats").EnumerateArray().Select(s => new CraftStat(Str(s, "id"), Int(s, "min"), Int(s, "max")))])
+                    { NameLocalized = Localized(e, "nameLocalized") };
                     mods[mod.Id] = mod;
                     break;
                 case "base":
@@ -117,23 +147,31 @@ sealed class CrafterCatalog
                         foreach (var i in influence.EnumerateObject()) pools[i.Name] = i.Value.GetInt32();
                     bases.Add(new CraftBase(Str(e, "id"), Str(e, "name"), Str(e, "class"), Int(e, "width"), Int(e, "height"),
                         Int(e, "dropLevel"), [.. e.GetProperty("requirements").EnumerateArray().Select(r => r.GetInt32())], Int(e, "sockets"),
-                        e.GetProperty("quality").GetBoolean(), [.. e.GetProperty("implicits").EnumerateArray().Select(m => m.GetString()!)], pools));
+                        e.GetProperty("quality").GetBoolean(), [.. e.GetProperty("implicits").EnumerateArray().Select(m => m.GetString()!)], pools)
+                    { NameLocalized = Localized(e, "nameLocalized") });
                     break;
                 case "desc":
                     var description = new StatDescription([.. e.GetProperty("stats").EnumerateArray().Select(s => s.GetString()!)],
                         [.. e.GetProperty("variants").EnumerateArray().Select(v => new DescriptionVariant(
                             [.. v.GetProperty("when").EnumerateArray().Select(w => w.GetString()!)], Str(v, "text"),
-                            [.. v.GetProperty("handlers").EnumerateArray().Select(h => (h[0].GetString()!, h[1].GetInt32()))]))]);
+                            [.. v.GetProperty("handlers").EnumerateArray().Select(h => (h[0].GetString()!, h[1].GetInt32()))])
+                        { TextLocalized = Localized(v, "textLocalized") })]);
                     foreach (string stat in description.Stats) descriptions.TryAdd(stat, description);
                     break;
                 case "word":
-                    words.Add(new RareWord(Int(e, "list"), e.GetProperty("key").GetUInt32(), Str(e, "text")));
+                    words.Add(new RareWord(Int(e, "list"), e.GetProperty("key").GetUInt32(), Str(e, "text"))
+                        { TextLocalized = Localized(e, "textLocalized") });
                     break;
             }
         }
         var resolved = poolIds.ToDictionary(p => p.Key, p => (IReadOnlyList<CraftMod>)[.. p.Value.Select(mods.GetValueOrDefault).OfType<CraftMod>()]);
-        return new(classes, bases, mods, resolved, descriptions, words);
+        return new(classes, bases, mods, resolved, descriptions, words, classNamesLocalized) { LocaleTag = localeTag };
     }
+
+    /// <summary>A translated field the Gateway may send beside the English one: null when it is absent, null or empty, so
+    /// an older Gateway (and a value it has no translation for) never breaks the parse.</summary>
+    static string? Localized(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && value.GetString() is { Length: > 0 } text ? text : null;
 
     static string Str(JsonElement e, string name) => e.GetProperty(name).GetString() ?? "";
     static int Int(JsonElement e, string name) => e.GetProperty(name).GetInt32();
@@ -168,6 +206,33 @@ sealed class CrafterCatalog
 
     /// <summary>The lines the game shows for a mod: with these values, or its roll ranges ("(71-85) to maximum Life").</summary>
     public IReadOnlyList<string> Lines(CraftMod mod, IReadOnlyList<int>? values = null) => ModText.Lines(mod, Description, values);
+
+    // Presentation only, below: the English above is the canonical data (the logic, the import matching, the command).
+    // A value the Gateway did not translate stays English, so an older Gateway, or a checkout without the client's data,
+    // shows exactly what it showed before.
+
+    /// <summary>Whether the Gateway's translated text is for <paramref name="language"/>: the catalog names its language
+    /// with a <c>locale</c> line, and only one of <see cref="L.Languages"/> counts.</summary>
+    public bool Localized(string language) => LocaleTag is { Length: > 0 } tag && L.Supported(tag) == language;
+
+    public string BaseName(CraftBase b, string language) =>
+        Localized(language) && b.NameLocalized is { Length: > 0 } name ? name : b.Name;
+
+    /// <summary>The class name for its id ("Ring"), localized when the catalog has it.</summary>
+    public string ClassName(string itemClass, string language) =>
+        Localized(language) && _classNamesLocalized.GetValueOrDefault(itemClass) is { Length: > 0 } name
+            ? name
+            : Classes.GetValueOrDefault(itemClass) ?? itemClass;
+
+    public string ModName(CraftMod m, string language) =>
+        Localized(language) && m.NameLocalized is { Length: > 0 } name ? name : m.Name;
+
+    public string WordText(RareWord w, string language) =>
+        Localized(language) && w.TextLocalized is { Length: > 0 } text ? text : w.Text;
+
+    /// <summary>The game's wording of a mod's stats in the interface language, with these values or its roll ranges.</summary>
+    public IReadOnlyList<string> DisplayLines(CraftMod mod, IReadOnlyList<int>? values, string language) =>
+        ModText.Lines(mod, Description, values, Localized(language));
 }
 
 /// <summary>
@@ -177,7 +242,8 @@ sealed class CrafterCatalog
 /// </summary>
 static class ModText
 {
-    public static IReadOnlyList<string> Lines(CraftMod mod, Func<string, StatDescription?> describe, IReadOnlyList<int>? values)
+    public static IReadOnlyList<string> Lines(CraftMod mod, Func<string, StatDescription?> describe, IReadOnlyList<int>? values,
+        bool localized = false)
     {
         var lines = new List<string>();
         var done = new HashSet<StatDescription>(ReferenceEqualityComparer.Instance);
@@ -190,7 +256,7 @@ static class ModText
                 if (i < 0) return (0, 0);
                 return values is null ? (mod.Stats[i].Min, mod.Stats[i].Max) : (i < values.Count ? (values[i], values[i]) : (mod.Stats[i].Min, mod.Stats[i].Max));
             }).ToArray();
-            if (Format(d, ranges) is { Length: > 0 } line) lines.AddRange(line.Split('\n'));
+            if (Format(d, ranges, localized) is { Length: > 0 } line) lines.AddRange(line.Split('\n'));
         }
         return lines;
     }
@@ -203,16 +269,22 @@ static class ModText
 
     static readonly Regex Placeholder = new(@"\{(\d*)(?::([^}]*))?\}", RegexOptions.Compiled);
 
+    /// <summary>The client's display markup: colour and attribute tags such as <c>&lt;DF1&gt;</c>, and the doubled braces
+    /// around a value. An older Gateway still sends them; links (<c>[A|B]</c>) the server already strips.</summary>
+    static readonly Regex Markup = new(@"<[A-Za-z][A-Za-z0-9]*>|\{\{|\}\}", RegexOptions.Compiled);
+
     /// <summary>The line for these values (min and max of each stat, the same for a rolled mod), or null when no variant
     /// applies (a value of 0 for a description that only words other values).</summary>
-    internal static string? Format(StatDescription d, IReadOnlyList<(int Min, int Max)> ranges)
+    internal static string? Format(StatDescription d, IReadOnlyList<(int Min, int Max)> ranges, bool localized = false)
     {
         var variant = d.Variants.FirstOrDefault(v => Matches(v, ranges.Select(r => r.Max).ToList()))
             ?? d.Variants.FirstOrDefault(v => Matches(v, ranges.Select(r => r.Min).ToList()));
         if (variant is null) return null;
         int next = 0;
-        // A line break in a description is written "\n", as in the client's file.
-        return Placeholder.Replace(variant.Text.Replace("\\n", "\n"), m =>
+        // The variant is chosen by the English conditions; only its wording is translated. A line break in a description is
+        // written "\n", as in the client's file.
+        string text = localized && variant.TextLocalized is { Length: > 0 } translated ? translated : variant.Text;
+        return Placeholder.Replace(Markup.Replace(text.Replace("\\n", "\n"), ""), m =>
         {
             int index = m.Groups[1].Length > 0 ? int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) : next++;
             if (index >= ranges.Count) return m.Value;
