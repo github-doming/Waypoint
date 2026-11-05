@@ -100,7 +100,7 @@ full control over branches and pull requests. Someone coming from an earlier lau
 | **Performance**, **Server timings** | Live CPU, memory and runtime counters; what each Gateway operation costs |
 | **Logs** | Every server's log, the client's, Waypoint's own, and all errors in one place; a redacted diagnostic report |
 | **Console** | The Gateway's chat commands for the character in game, with suggestions and pinned lines |
-| **Tools** | The item crafter: any base, rarity, modifiers with their values, sockets and influences; saved items; give it to the character in game |
+| **Tools** | The item crafter (any base, rarity, modifiers with their values, sockets and influences; saved items; give it to the character in game), and the tools the checkout adds: a folder under `Tools\` or `Mods\Binaries\` with a `waypoint-tool.json` |
 | **Settings** | Appearance and accessibility, language, what closing the window does, updates, the checkout |
 
 **English, Russian and Simplified Chinese** are in **Settings → Language**, and switch at once; until one is picked,

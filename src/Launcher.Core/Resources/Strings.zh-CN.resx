@@ -1232,6 +1232,9 @@
   <data name="Text_33b938b93ca9" xml:space="preserve">
     <value>打开指定的上游 PR</value>
   </data>
+  <data name="Text_33d7734385c6" xml:space="preserve">
+    <value>在 Tools 或 Mods/Binaries 下的工具旁放一个 waypoint-tool.json；文件写明脚本和工具用途。</value>
+  </data>
   <data name="Text_3455a18c69a8" xml:space="preserve">
     <value>{0:0.0} / {1:0.0} GB · {2:0} MB/s · {3}</value>
   </data>
@@ -1321,6 +1324,9 @@
   </data>
   <data name="Text_3907fa7f8072" xml:space="preserve">
     <value>外观</value>
+  </data>
+  <data name="Text_390a958f3b46" xml:space="preserve">
+    <value>已打开</value>
   </data>
   <data name="Text_390dc6e41d4f" xml:space="preserve">
     <value>安装向导会下载并构建 LocalExile 的最新版本，还可以迁移你的角色。</value>
@@ -1947,6 +1953,9 @@
   <data name="Text_54941e76228c" xml:space="preserve">
     <value>最小化 Waypoint</value>
   </data>
+  <data name="Text_54a3e923b9f4" xml:space="preserve">
+    <value>无法启动</value>
+  </data>
   <data name="Text_54c4fa1fb963" xml:space="preserve">
     <value>恢复所选存档备份</value>
   </data>
@@ -2228,6 +2237,9 @@
   </data>
   <data name="Text_61b04b5fb05f" xml:space="preserve">
     <value>重启游戏</value>
+  </data>
+  <data name="Text_61d60ed4f0da" xml:space="preserve">
+    <value>来自当前 checkout 的工具，每个都在独立窗口中打开。Waypoint 会通过工具旁的 waypoint-tool.json 找到它们。</value>
   </data>
   <data name="Text_61d64d38cb24" xml:space="preserve">
     <value>在侧边栏添加“简易 | 高级”切换开关。高级模式包含服务器、分支和拉取请求、备份、性能、日志和控制台。</value>
@@ -2971,6 +2983,9 @@
   </data>
   <data name="Text_833507f68e42" xml:space="preserve">
     <value>拉取请求 #{0}：{1}</value>
+  </data>
+  <data name="Text_8338a34b0f6f" xml:space="preserve">
+    <value>此工具需要游戏正在运行。</value>
   </data>
   <data name="Text_8356dc6d3665" xml:space="preserve">
     <value>{0} · 已用时 {1}</value>
@@ -4065,6 +4080,9 @@
   <data name="Text_b186b72af3a9" xml:space="preserve">
     <value>搜索模组</value>
   </data>
+  <data name="Text_b19fb8d1b395" xml:space="preserve">
+    <value>已启动</value>
+  </data>
   <data name="Text_b239a87356cd" xml:space="preserve">
     <value>{0} 个源码副本与上游 HEAD 一致。请在下方选择一个，或“浏览”其他位置。</value>
   </data>
@@ -4843,6 +4861,9 @@ Gateway 最近报告的事件。打开 Gateway 输出查看详情。</value>
   </data>
   <data name="Text_d5e4a3eb71f6" xml:space="preserve">
     <value>无耗时数据：{0}</value>
+  </data>
+  <data name="Text_d604381b6fee" xml:space="preserve">
+    <value>未找到本地工具。</value>
   </data>
   <data name="Text_d61fc5870a81" xml:space="preserve">
     <value>在 Gateway 启动、切换源码副本或更改账号之前，生成一份一致的存档副本</value>

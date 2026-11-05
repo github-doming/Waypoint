@@ -32,6 +32,13 @@ if (args.Length == 2 && args[0] == "--account-change")
     Console.WriteLine(JsonSerializer.Serialize(result, SettingsStore.JsonOptions));
     return result.Ok ? 0 : 1;
 }
+if (args.Length == 2 && args[0] == "--tools")
+{
+    // The tools a checkout offers Waypoint: folders with a waypoint-tool.json beside the script.
+    var tools = CheckoutTools.Find(args[1]);
+    Console.WriteLine(JsonSerializer.Serialize(tools, SettingsStore.JsonOptions));
+    return tools.Count == 0 ? 1 : 0;
+}
 if (args.Length > 0 && args[0] == "--discover")
 {
     var roots = args.Length > 1 ? new[] { new RepositorySearchRoot(args[1], 4) }

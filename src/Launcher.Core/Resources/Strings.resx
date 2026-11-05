@@ -1232,6 +1232,9 @@ This checkout has modified tracked files.</value>
   <data xml:space="preserve" name="Text_33b938b93ca9">
     <value>Open a specific upstream PR</value>
   </data>
+  <data name="Text_33d7734385c6" xml:space="preserve">
+    <value>Put a waypoint-tool.json beside a tool under Tools or Mods/Binaries. The file names the script and says what the tool does.</value>
+  </data>
   <data name="Text_3455a18c69a8" xml:space="preserve">
     <value>{0:0.0} of {1:0.0} GB · {2:0} MB/s · {3}</value>
   </data>
@@ -1321,6 +1324,9 @@ This checkout has modified tracked files.</value>
   </data>
   <data xml:space="preserve" name="Text_3907fa7f8072">
     <value>Appearance</value>
+  </data>
+  <data name="Text_390a958f3b46" xml:space="preserve">
+    <value>Already open</value>
   </data>
   <data name="Text_390dc6e41d4f" xml:space="preserve">
     <value>The setup guide downloads LocalExile's newest version and builds it, and can bring your characters.</value>
@@ -1947,6 +1953,9 @@ This checkout has modified tracked files.</value>
   <data xml:space="preserve" name="Text_54941e76228c">
     <value>Minimize Waypoint</value>
   </data>
+  <data name="Text_54a3e923b9f4" xml:space="preserve">
+    <value>Could not start</value>
+  </data>
   <data xml:space="preserve" name="Text_54c4fa1fb963">
     <value>Restore selected save backup</value>
   </data>
@@ -2228,6 +2237,9 @@ Search limits reached; other checkouts may exist. Browse to any location.</value
   </data>
   <data name="Text_61b04b5fb05f" xml:space="preserve">
     <value>Restart the game</value>
+  </data>
+  <data name="Text_61d60ed4f0da" xml:space="preserve">
+    <value>Tools from this checkout, each in its own window. Waypoint finds them by a waypoint-tool.json beside the tool.</value>
   </data>
   <data name="Text_61d64d38cb24" xml:space="preserve">
     <value>Adds a Simple | Advanced switch to the sidebar. Advanced has the servers, branches and pull requests, backups, performance, logs and the console.</value>
@@ -2971,6 +2983,9 @@ Switching to it builds and runs that code on this computer with your rights, liv
   </data>
   <data name="Text_833507f68e42" xml:space="preserve">
     <value>Pull request #{0}: {1}</value>
+  </data>
+  <data name="Text_8338a34b0f6f" xml:space="preserve">
+    <value>This tool needs the game running.</value>
   </data>
   <data xml:space="preserve" name="Text_8356dc6d3665">
     <value>{0} · elapsed {1}</value>
@@ -4065,6 +4080,9 @@ Owned servers will stop. Automatic backup is {2}. Source, client and login keys 
   <data xml:space="preserve" name="Text_b186b72af3a9">
     <value>Search mods</value>
   </data>
+  <data name="Text_b19fb8d1b395" xml:space="preserve">
+    <value>Opened</value>
+  </data>
   <data xml:space="preserve" name="Text_b239a87356cd">
     <value>{0} checkouts match upstream HEAD. Choose one below, or Browse elsewhere.</value>
   </data>
@@ -4843,6 +4861,9 @@ Client: {2}</value>
   </data>
   <data name="Text_d5e4a3eb71f6" xml:space="preserve">
     <value>no timings: {0}</value>
+  </data>
+  <data name="Text_d604381b6fee" xml:space="preserve">
+    <value>No local tools found.</value>
   </data>
   <data name="Text_d61fc5870a81" xml:space="preserve">
     <value>A consistent copy of the saves before a Gateway start, a checkout switch or an account change</value>
