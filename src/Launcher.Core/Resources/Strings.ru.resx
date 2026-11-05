@@ -1232,6 +1232,9 @@
   <data xml:space="preserve" name="Text_33b938b93ca9">
     <value>Открыть PR по номеру</value>
   </data>
+  <data name="Text_33d7734385c6" xml:space="preserve">
+    <value>Положите файл waypoint-tool.json рядом с инструментом в Tools или Mods/Binaries. В файле указаны скрипт и описание инструмента.</value>
+  </data>
   <data name="Text_3455a18c69a8" xml:space="preserve">
     <value>{0:0.0} из {1:0.0} ГБ · {2:0} МБ/с · {3}</value>
   </data>
@@ -1321,6 +1324,9 @@
   </data>
   <data xml:space="preserve" name="Text_3907fa7f8072">
     <value>Оформление</value>
+  </data>
+  <data name="Text_390a958f3b46" xml:space="preserve">
+    <value>Уже открыт</value>
   </data>
   <data name="Text_390dc6e41d4f" xml:space="preserve">
     <value>Мастер настройки скачает новейшую версию LocalExile, соберёт её и может перенести ваших персонажей.</value>
@@ -1947,6 +1953,9 @@
   <data xml:space="preserve" name="Text_54941e76228c">
     <value>Свернуть Waypoint</value>
   </data>
+  <data name="Text_54a3e923b9f4" xml:space="preserve">
+    <value>Не удалось запустить</value>
+  </data>
   <data xml:space="preserve" name="Text_54c4fa1fb963">
     <value>Восстановить выбранную копию</value>
   </data>
@@ -2228,6 +2237,9 @@
   </data>
   <data name="Text_61b04b5fb05f" xml:space="preserve">
     <value>Перезапустить игру</value>
+  </data>
+  <data name="Text_61d60ed4f0da" xml:space="preserve">
+    <value>Инструменты этой рабочей копии, каждый в своём окне. Waypoint находит их по файлу waypoint-tool.json рядом с инструментом.</value>
   </data>
   <data name="Text_61d64d38cb24" xml:space="preserve">
     <value>Добавляет на боковую панель переключатель «Простой | Расширенный». В расширенном режиме есть серверы, ветки и запросы на слияние, резервные копии, производительность, журналы и консоль.</value>
@@ -2971,6 +2983,9 @@
   </data>
   <data name="Text_833507f68e42" xml:space="preserve">
     <value>Запрос на слияние #{0}: {1}</value>
+  </data>
+  <data name="Text_8338a34b0f6f" xml:space="preserve">
+    <value>Этому инструменту нужна запущенная игра.</value>
   </data>
   <data xml:space="preserve" name="Text_8356dc6d3665">
     <value>{0} · прошло {1}</value>
@@ -4065,6 +4080,9 @@
   <data xml:space="preserve" name="Text_b186b72af3a9">
     <value>Поиск модов</value>
   </data>
+  <data name="Text_b19fb8d1b395" xml:space="preserve">
+    <value>Открыт</value>
+  </data>
   <data xml:space="preserve" name="Text_b239a87356cd">
     <value>Репозиториев с HEAD LocalExile: {0}. Выберите один ниже или укажите другую папку.</value>
   </data>
@@ -4843,6 +4861,9 @@
   </data>
   <data name="Text_d5e4a3eb71f6" xml:space="preserve">
     <value>нет таймингов: {0}</value>
+  </data>
+  <data name="Text_d604381b6fee" xml:space="preserve">
+    <value>Локальные инструменты не найдены.</value>
   </data>
   <data name="Text_d61fc5870a81" xml:space="preserve">
     <value>Согласованная копия сохранений перед запуском Gateway, переключением репозитория или изменением аккаунта</value>

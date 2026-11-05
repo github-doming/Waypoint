@@ -351,7 +351,7 @@ A link to a section Simple mode's list lacks (a log, from a failure) shows that 
 | Logs | every server's `logs\live-*.log` with its `.err`, the walk-map recorder, the dev host, the client's `Client\logs\Client.txt`, the launcher's own lines, and "All errors" from all of them | follows each file twice a second; a file `live.ps1` recreates starts over; a large file from its last 512 KB |
 | Accounts | the accounts and their characters, searchable; registering an account; creating a character; creating, duplicating, renaming, setting a password and deleting with everything stopped | the list and those changes are the adapter's (`QueryAccounts`, `Register`, `ManageAccount`, `AccountData.py`; [account-management.md](account-management.md)); Register and Create go through the server's dev account service (`GameServer.Host`, its `Agents/docs/dev-server.md`): `register`, `create_character`; Waypoint builds and starts it when needed |
 | Console | the Gateway's chat commands for the character in game, with suggestions, usages, pinned lines and history | the server's client control bridge (`scripts/dev/client_control.py --stdio`); the lists come from the built Gateway (`GameServer.Gateway commands` and `values`) |
-| Tools | tools for the game itself, each in its own window: the item crafter | the server's item crafter hook (its `Agents/docs/dev/item-crafter.md`): `GameServer.Gateway crafter` and `/item_give` through the client control bridge |
+| Tools | tools for the game itself, each in its own window: the item crafter and the tools the checkout adds | the server's item crafter hook (its `Agents/docs/dev/item-crafter.md`): `GameServer.Gateway crafter` and `/item_give` through the client control bridge; the checkout's `waypoint-tool.json` descriptors |
 | Settings | the appearance, the language, what closing the window does, updates, the checkout and its local launch profile (Advanced mode only) | saved as chosen; `Settings.cs` |
 
 ### Control
@@ -621,7 +621,7 @@ removed there, and it goes to the clipboard only when asked.
   commands** does it at once. The Gateway's catalogs write their own log lines beside the values ("[gateway] atlas: …"),
   which the launcher skips. The loaded mods' commands are not in the list.
 
-### Tools: the item crafter
+### Tools
 
 **Open item crafter** opens its window (one at a time; the button brings it forward): a window of its own in the
 taskbar, with Minimize and Maximize, not kept in front of Waypoint's. It makes any item the server can
@@ -672,6 +672,29 @@ A Gateway built before the hook does not know `crafter` and would start for real
 which is safe, and goes on only if that lists `/item_give`, which came with the hook. If not, the window says the
 checkout needs updating and building; nothing starts.
 
+**The checkout's tools** are in the same row of cards. Waypoint needs no change to offer them: each is a folder under
+`Tools\` or `Mods\Binaries\` with a `waypoint-tool.json` beside its script:
+
+| Field | Meaning |
+| --- | --- |
+| `name` | the card's title, shown as written (like a repository or pull request title) |
+| `description` | the line under it |
+| `script` | the PowerShell script, relative to the folder |
+| `arguments` | optional switches for the script |
+| `workingDirectory` | optional folder to run in, relative to the tool's folder (default: the tool's folder) |
+| `needsGame` | shows that the tool needs the character in game |
+| `icon` | optional Material Design icon name for the card |
+
+The card's **Open** starts the tool in its own window the way its `.cmd` does: the checkout's PowerShell, `-Sta`, without
+a console window. A tool already running says **Already open**. **Open folder** shows the tool's folder, and **Refresh**
+reads the descriptors again, as does showing the section again after a checkout switch or an added tool. A descriptor that
+is broken or names a file outside the checkout is skipped, and the other tools stay. A checkout without any says so and
+where to put the file.
+
+The tools are checkout files (`Tools\` and `Mods\` are ignored by the server repository), so the server can add one
+without a Waypoint change, and Waypoint launches it without knowing what it is. They are Windows only: the tools are
+PowerShell WinForms, and the Linux Tools section shows the item crafter's card alone.
+
 ### Accounts
 
 The list is read from the checkout's save database through the adapter, with nothing running or built: every account with
@@ -700,9 +723,9 @@ adapter does not know can be browsed but not changed.
 | `AppearanceDialog.cs`, `ColorPickerDialog.cs`, `AccountActionDialog.cs`, `WindowBehaviorChoices.cs` | the appearance, an account change, the close choices |
 | `Workspace.cs`, `OutputPanel.xaml` | the app's side of the adapter: the last inspection, the operations and their output |
 | `SetupTab`, `ModsTab`, `BackupsTab`, `SettingsTab` | those sections |
-| `ToolsTab`, `ItemCrafterWindow`, `CrafterCatalog.cs`, `CraftedItems.cs`, `ItemImport.cs`, `ItemImportWindow` | the Tools section; the item crafter, the Gateway's crafter data and the game's wording of modifiers, the saved items, importing an item copied from Path of Building or the game |
+| `ToolsTab`, `CheckoutToolCards.cs`, `ItemCrafterWindow`, `CrafterCatalog.cs`, `CraftedItems.cs`, `ItemImport.cs`, `ItemImportWindow` | the Tools section; the checkout's own tools and their cards; the item crafter, the Gateway's crafter data and the game's wording of modifiers, the saved items, importing an item copied from Path of Building or the game |
 | `Loc.cs`, `src/Launcher.Core/Localization.cs`, `src/Launcher.Core/Resources/` | interface text in XAML and code, the languages (`L.Languages`) and their catalogs |
-| `src/Launcher.Core/` | the adapter's client (`RuntimeClient.cs`, `BridgeScripts.cs`), the mods, backups, accounts, setup guidance, checkout discovery, diagnostics, the single instance |
+| `src/Launcher.Core/` | the adapter's client (`RuntimeClient.cs`, `BridgeScripts.cs`), the mods, backups, accounts, setup guidance, checkout discovery, the checkout's tool descriptors (`CheckoutTools.cs`), diagnostics, the single instance |
 | `scripts/` | the adapter: `RuntimeBridge.ps1` and its parts, `SaveBackup.py`, `AccountData.py` |
 | `RuntimeCounters.cs`, `Metrics.cs`, `TimeSeries.cs`, `LineChart.cs` | the runtime counter sessions, the history, the charts (drawn directly: the WPF chart libraries pull in .NET Framework builds of SkiaSharp) |
 | `Git.cs`, `PullRequests.cs`, `VersionsTab.xaml.cs` | git in the checkout and the parsing of its output, the open pull requests, the Versions section and its guards |
